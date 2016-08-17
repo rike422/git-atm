@@ -1,0 +1,124 @@
+#!/bin/zsh
+
+PREFIX="from now"
+MESSAGE="[${PREFIX}] `date +\"%Y/%m/%d %T\"`"
+
+get_amend() {
+  if [ -z `git log --pretty=oneline -1 | cut -d " " -f 2- | grep "^\[${PREFIX}]"` ]
+  then
+    return 1
+  fi
+
+  local added_files=`git diff --name-only --cached`
+  for f1 in `git diff --name-only HEAD^ HEAD`
+  do
+    for f2 in $added_files
+    do
+      if [ $f1 == $f2 ]
+      then
+        return 1
+      fi
+    done
+  done
+  echo "--amend"
+  return 1
+}
+
+git_atm()
+{
+  git add -u
+  git commit -m "${MESSAGE}"
+}
+
+git_atm::compact()
+{
+  git add -A
+  AMEND=`get_amend`
+  git commit $AMEND -m "${MESSAGE}"
+}
+
+git_atm::recent()
+{
+  git add -A
+  if [ -z "`git log --since=1.minute`" ]
+  then
+    git commit -m "${MESSAGE}"
+  else
+    git commit --amend -m "${MESSAGE}"
+  fi
+}
+
+git_atm::fixup()
+{
+  FIRST_NOW_COMMIT=`git log --pretty=oneline --grep="${PREFIX}" | tail -n 1 | cut -d " " -f 1`
+  git reset ${FIRST_NOW_COMMIT}
+  git add -A
+  if [ $# -eq 2 ]
+  then
+    git commit --amend -m "$2"
+  else
+    git commit --amend
+  fi
+}
+
+git_atm::rebase()
+{
+  if [ $1 != "--all" ]
+  then
+    git add $@
+  else
+    git add -u
+    git add .
+  fi
+  printf "${MESSAGE}\n\n%s" "`git diff --cached`" | git commit -F -
+}
+
+git_atm::checkout() {
+  FIRST_NOW_COMMIT=`git log --pretty=oneline --grep="${PREFIX}" | tail -n 1 | cut -d " " -f 1`
+  INITIAL_COMMIT=`git log --pretty=oneline | tail -n 1 | cut -d " " -f 1`
+
+  if [ ${FIRST_NOW_COMMIT} != ${INITIAL_COMMIT} ]
+  then
+    git rebase -i ${FIRST_NOW_COMMIT}^
+  else
+    WORKING_BRANCH=`git branch -l | grep "*" | cut -d " " -f 2`
+
+    git checkout ${FIRST_NOW_COMMIT}
+    git commit --amend
+    git rebase --onto HEAD ${FIRST_NOW_COMMIT} ${WORKING_BRANCH}
+  fi
+}
+
+
+# main
+case "$1" in
+  -h|--help)
+    git_atm::usage HELP
+    exit $status
+    ;;
+
+  -c|--compact)
+    shift; git_atm::compact "$@"
+    ;;
+
+  -r|--recent)
+    shift; git_atm::recent "$@"
+    ;;
+
+  -f|--fixup)
+    shift; git_atm::fixup "$@"
+    ;;
+
+  -f|--rebase)
+    shift; git_atm::rebase "$@"
+    ;;
+
+  -*|--*)
+    echo "$1: unknown option" >&2
+    exit 1
+    ;;
+
+  "")
+    git_atm "$@"
+    ;;
+esac
