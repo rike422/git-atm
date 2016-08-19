@@ -24,20 +24,20 @@ get_amend() {
   return 1
 }
 
-git_atm()
+git_tmp()
 {
   git add -u
   git commit -m "${MESSAGE}"
 }
 
-git_atm::compact()
+git_tmp::compact()
 {
   git add -A
   AMEND=`get_amend`
   git commit $AMEND -m "${MESSAGE}"
 }
 
-git_atm::recent()
+git_tmp::recent()
 {
   git add -A
   if [ -z "`git log --since=1.minute`" ]
@@ -48,7 +48,7 @@ git_atm::recent()
   fi
 }
 
-git_atm::fixup()
+git_tmp::fixup()
 {
   FIRST_NOW_COMMIT=`git log --pretty=oneline --grep="${PREFIX}" | tail -n 1 | cut -d " " -f 1`
   git reset ${FIRST_NOW_COMMIT}
@@ -61,7 +61,7 @@ git_atm::fixup()
   fi
 }
 
-git_atm::rebase()
+git_tmp::rebase()
 {
   if [ $1 != "--all" ]
   then
@@ -73,7 +73,7 @@ git_atm::rebase()
   printf "${MESSAGE}\n\n%s" "`git diff --cached`" | git commit -F -
 }
 
-git_atm::checkout() {
+git_tmp::checkout() {
   FIRST_NOW_COMMIT=`git log --pretty=oneline --grep="${PREFIX}" | tail -n 1 | cut -d " " -f 1`
   INITIAL_COMMIT=`git log --pretty=oneline | tail -n 1 | cut -d " " -f 1`
 
@@ -93,24 +93,24 @@ git_atm::checkout() {
 # main
 case "$1" in
   -h|--help)
-    git_atm::usage HELP
+    git_tmp::usage HELP
     exit $status
     ;;
 
   -c|--compact)
-    shift; git_atm::compact "$@"
+    shift; git_tmp::compact "$@"
     ;;
 
   -r|--recent)
-    shift; git_atm::recent "$@"
+    shift; git_tmp::recent "$@"
     ;;
 
   -f|--fixup)
-    shift; git_atm::fixup "$@"
+    shift; git_tmp::fixup "$@"
     ;;
 
   -f|--rebase)
-    shift; git_atm::rebase "$@"
+    shift; git_tmp::rebase "$@"
     ;;
 
   -*|--*)
@@ -119,6 +119,6 @@ case "$1" in
     ;;
 
   "")
-    git_atm "$@"
+    git_tmp "$@"
     ;;
 esac
