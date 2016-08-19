@@ -1,3 +1,3 @@
 # git-tmp
 
-git commands for the "at the moment" commit
+git commands for the temporary commit
